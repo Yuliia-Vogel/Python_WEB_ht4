@@ -2,25 +2,26 @@ import mimetypes
 import pathlib
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import urllib.parse
+# import json
+# from datetime import datetime
+import socket
 
 
 class HttpHandler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        data = self.rfile.read(int(self.headers['Content-Length']))
-        print(data)
-        data_parse = urllib.parse.unquote_plus(data.decode())
-        print(data_parse)
-        data_dict = {key: value for key, value in [el.split('=') for el in data_parse.split('&')]}
-        print(data_dict)
+    def do_POST(self): # відправити повідомлення
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        print(post_data)
+        send_to_socket(post_data) # Відправляємо байтову строку через сокет # відправляємо дані через сокет
         self.send_response(302)
         self.send_header('Location', '/')
         self.end_headers()
 
     def do_GET(self): 
         pr_url = urllib.parse.urlparse(self.path)
-        if pr_url.path == '/':
+        if pr_url.path == '/': # головна сторінка
             self.send_html_file('index.html')
-        elif pr_url.path == '/message': 
+        elif pr_url.path == '/message': # надіслати повідомлення
             self.send_html_file('message.html')
         else:
             if pathlib.Path().joinpath(pr_url.path[1:]).exists():
@@ -46,6 +47,14 @@ class HttpHandler(BaseHTTPRequestHandler):
         with open(f'.{self.path}', 'rb') as file:
             self.wfile.write(file.read())
 
+
+def send_to_socket(data):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server_address = ('localhost', 5000)
+    try:
+        sock.sendto(data, server_address)
+    finally:
+        sock.close()
 
 def run(server_class=HTTPServer, handler_class=HttpHandler):
     server_address = ('', 3000)
